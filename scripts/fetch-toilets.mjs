@@ -224,9 +224,10 @@ function isClosed(it) {
 // ---------- 실행 ----------
 
 async function main() {
-  const key = process.env.MOIS_TOILET_KEY;
-  const kakaoKey = process.env.KAKAO_REST_KEY;
+  const key = (process.env.MOIS_TOILET_KEY || "").trim();
+  const kakaoKey = (process.env.KAKAO_REST_KEY || "").trim();
   if (!key) throw new Error("MOIS_TOILET_KEY 가 없어요 (GitHub Secret 확인)");
+  console.log(`서비스키 길이 ${key.length}자, 앞 4자리 ${key.slice(0, 4)}`);
   if (!kakaoKey) throw new Error("KAKAO_REST_KEY 가 없어요 (GitHub Secret 확인)");
 
   let cache = {};
