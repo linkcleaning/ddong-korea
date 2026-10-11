@@ -1,0 +1,39 @@
+name: 전국 화장실 데이터 업데이트
+
+on:
+  schedule:
+    - cron: "0 20 * * *" # 매일 새벽 5시(한국시간)
+  workflow_dispatch: # Actions 탭에서 직접 실행 버튼
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-toilets
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300 # 첫 실행은 전국 좌표 변환 때문에 오래 걸려요
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 전국 공공데이터 받아서 좌표 변환
+        env:
+          MOIS_TOILET_KEY: ${{ secrets.MOIS_TOILET_KEY }}
+          KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_KEY }}
+        run: node scripts/fetch-toilets.mjs
+
+      - name: 바뀐 데이터 저장
+        if: always() # 도중에 멈춰도 변환해 둔 좌표 캐시는 저장
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A public/data data/geocache.json 2>/dev/null || true
+          git diff --cached --quiet && echo "변경 없음" || git commit -m "전국 화장실 데이터 자동 업데이트 $(date +%F)"
+          git push
