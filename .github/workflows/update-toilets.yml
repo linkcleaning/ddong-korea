@@ -36,4 +36,6 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A public/data data/geocache.json 2>/dev/null || true
           git diff --cached --quiet && echo "변경 없음" || git commit -m "전국 화장실 데이터 자동 업데이트 $(date +%F)"
+          # 실행 중에 앱 코드가 올라왔어도 데이터가 사라지지 않게 최신 내용 위에 얹어서 올려요
+          git pull --rebase -X theirs origin main || true
           git push

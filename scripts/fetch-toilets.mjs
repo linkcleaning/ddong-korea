@@ -175,45 +175,58 @@ async function geocodeMissing(kakaoKey, items, cache) {
 }
 
 // ---------- 3. 앱용 형태로 정리 ----------
-// 파일 크기를 줄이려고 값이 없는 항목(0, 빈칸, false)은 넣지 않아요.
+// 제주판 앱과 같은 항목 이름을 써요. 파일 크기를 줄이려고 빈 글자·null 은 넣지 않아요.
 
 const num = (v) => Number(v || 0) || 0;
+const pct = (arr, q) => { const a = arr.slice().sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(q * a.length))]; };
+// 대한민국 범위 밖으로 찾아진 좌표는 버려요
+const inKorea = (p) => p && p[0] > 32.8 && p[0] < 38.9 && p[1] > 124.2 && p[1] < 132.2;
 
 function compact(obj) {
   for (const k of Object.keys(obj)) {
     const v = obj[k];
-    if (v === "" || v === 0 || v === false || v == null) delete obj[k];
+    if (v === "" || v == null) delete obj[k];
   }
   return obj;
 }
 
-function toToilet(it, pos, district) {
+// "상시" 이거나 운영시간이 하루 종일이면 24시간
+function is24h(it) {
+  const h = `${it.OPN_HR || ""} ${it.OPN_HR_DTL || ""}`;
+  return /상시|24\s*시간/.test(h) || /0?0[:시]\s*0?0\s*[~\-–]\s*24[:시]?\s*(00)?/.test(h);
+}
+
+function toToilet(it, pos, district, sido) {
+  const open24h = is24h(it);
+  const accM = num(it.MALE_FRDBL_TOILT_CNT) + num(it.MALE_FRDBL_URNL_CNT);
+  const accF = num(it.FEMALE_FRDBL_TOILT_CNT);
+  const kids = num(it.MALE_CHLD_TOILT_CNT) + num(it.MALE_CHLD_URNL_CNT) + num(it.FEMALE_CHLD_TOILT_CNT);
   return compact({
     id: it.MNG_NO,
     name: it.RSTRM_NM?.trim() || "공중화장실",
-    type: it.SE_NM, // 공중화장실 / 개방화장실 등
-    district, // 시·군·구 (지역 칩용)
-    road: it.LCTN_ROAD_NM_ADDR,
-    jibun: it.LCTN_LOTNO_ADDR,
+    address: it.LCTN_ROAD_NM_ADDR || it.LCTN_LOTNO_ADDR,
+    lotAddress: it.LCTN_ROAD_NM_ADDR ? it.LCTN_LOTNO_ADDR : "",
     lat: Math.round(pos[0] * 1e6) / 1e6,
     lng: Math.round(pos[1] * 1e6) / 1e6,
-    open: it.OPN_HR, // 상시 / 정시 등
-    hours: it.OPN_HR_DTL,
-    mT: num(it.MALE_TOILT_CNT), // 남자 대변기
-    mU: num(it.MALE_URNL_CNT), // 남자 소변기
-    fT: num(it.FEMALE_TOILT_CNT), // 여자 대변기
-    accM: num(it.MALE_FRDBL_TOILT_CNT) + num(it.MALE_FRDBL_URNL_CNT), // 장애인용(남)
-    accF: num(it.FEMALE_FRDBL_TOILT_CNT), // 장애인용(여)
-    kidM: num(it.MALE_CHLD_TOILT_CNT) + num(it.MALE_CHLD_URNL_CNT), // 어린이용(남)
-    kidF: num(it.FEMALE_CHLD_TOILT_CNT), // 어린이용(여)
+    hours: it.OPN_HR_DTL || (open24h ? "24시간" : it.OPN_HR),
+    status: open24h ? "open" : "limited",
+    open24h,
+    wheelchair: accM + accF > 0,
+    disabledFixtures: accM + accF > 0 ? [accM, 0, accF] : undefined,
+    toilets: [num(it.MALE_TOILT_CNT), num(it.MALE_URNL_CNT), num(it.FEMALE_TOILT_CNT)], // 남 대변기, 남 소변기, 여 대변기
     diaper: it.DIAP_EXCHCON_EN === "Y",
     diaperAt: it.DIAP_EXCHCON_PLC,
+    child: kids > 0,
     bell: it.EMRGNCBLL_INSTL_YN === "Y",
     bellAt: it.EMRGNCBLL_INSTL_PLC,
     cctv: it.RSTRM_ENTRAN_CCTV_INSTL_EN === "Y",
-    mgr: it.MNG_INST_NM,
+    type: it.SE_NM, // 공중화장실 / 개방화장실 등
+    org: it.MNG_INST_NM,
     tel: it.TELNO,
-    upd: it.DAT_CRTR_YMD,
+    ref: it.DAT_CRTR_YMD,
+    provider: district, // 시·군·구 (지역 칩용)
+    sido,
+    geocoded: "kakao",
   });
 }
 
@@ -253,38 +266,44 @@ async function main() {
     const sido = findSido(addr);
     if (!sido) { unknownSido++; missing.push(`[시도모름] ${it.RSTRM_NM} | ${addr}`); continue; }
     const pos = cache[cacheKeyOf(it)];
-    if (!pos) { missing.push(`[좌표없음] ${it.RSTRM_NM} | ${addr}`); continue; }
+    if (!inKorea(pos)) { missing.push(`[좌표없음] ${it.RSTRM_NM} | ${addr}`); continue; }
     const district = (addr || "").trim().split(/\s+/)[1] || "";
-    groups.get(sido.slug).push(toToilet(it, pos, district));
+    groups.get(sido.slug).push(toToilet(it, pos, district, sido.slug));
   }
 
   const index = {
-    source: "행정안전부_공중화장실정보 조회서비스",
+    dataset: "행정안전부_공중화장실정보 조회서비스 (공공데이터포털)",
+    sourcePages: ["https://www.data.go.kr/data/15155058/openapi.do"],
     generatedAt: new Date().toISOString(),
-    total: 0,
+    referenceDate: "",
+    count: 0,
     regions: [],
   };
   for (const s of SIDO) {
     const list = groups.get(s.slug);
     if (!list.length) continue;
     const lats = list.map((t) => t.lat), lngs = list.map((t) => t.lng);
-    const districts = [...new Set(list.map((t) => t.district).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko"));
-    await fs.writeFile(path.join(OUT_DIR, `toilets-${s.slug}.json`), JSON.stringify(list));
+    const districts = [...new Set(list.map((t) => t.provider).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko"));
+    const ref = list.reduce((m, t) => (t.ref && t.ref > m ? t.ref : m), "");
+    if (ref > index.referenceDate) index.referenceDate = ref;
+    await fs.writeFile(path.join(OUT_DIR, `toilets-${s.slug}.json`), JSON.stringify({ meta: { region: s.slug, count: list.length, referenceDate: ref }, toilets: list }));
     index.regions.push({
       slug: s.slug,
       name: s.name,
       count: list.length,
       districts,
       // 앱이 내 위치가 어느 시·도인지 대략 알 수 있게 범위를 넣어요
-      bbox: [Math.min(...lats), Math.min(...lngs), Math.max(...lats), Math.max(...lngs)],
+      // 좌표가 잘못 찾아진 몇 곳 때문에 범위가 커지지 않게 양 끝 0.5%는 빼요
+      bbox: [pct(lats, 0.005), pct(lngs, 0.005), pct(lats, 0.995), pct(lngs, 0.995)],
+      center: [pct(lats, 0.5), pct(lngs, 0.5)],
       file: `toilets-${s.slug}.json`,
     });
-    index.total += list.length;
+    index.count += list.length;
   }
   await fs.writeFile(path.join(OUT_DIR, "index.json"), JSON.stringify(index, null, 1));
   await fs.writeFile(path.join(OUT_DIR, "missing.txt"), missing.join("\n") + "\n");
 
-  console.log(`✅ 전국 ${index.total}곳 저장 (${index.regions.length}개 시·도)`);
+  console.log(`✅ 전국 ${index.count}곳 저장 (${index.regions.length}개 시·도)`);
   for (const r of index.regions) console.log(`   ${r.name}: ${r.count}`);
   console.log(`   좌표 없음/시도 모름: ${missing.length}곳 (missing.txt 참고, 시도 모름 ${unknownSido})`);
 }
