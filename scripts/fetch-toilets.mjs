@@ -290,5 +290,7 @@ async function main() {
 
 main().catch((e) => {
   console.error("❌", e.message);
+  // GitHub 요약 화면(Annotations)에도 이유가 보이게
+  if (process.env.GITHUB_ACTIONS) console.log(`::error title=수집 실패::${String(e.message).replace(/\r?\n/g, " ")}`);
   process.exit(1);
 });
