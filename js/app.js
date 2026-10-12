@@ -271,7 +271,7 @@ function fillIcons(root = document) {
 
 const FILTERS = [["openNow", "clock"], ["open24h", "clock"], ["wheelchair", "wheelchair"], ["diaper", "baby"], ["emergency", "bell"]];
 const sidoName = (slug) => t(`sido.${slug}`) !== `sido.${slug}` ? t(`sido.${slug}`) : (state.index?.regions.find((r) => r.slug === slug)?.name || slug);
-// 시·군·구 칩: 내 위치에서 가까운 곳부터
+// 구·시·군 칩 (수집할 때 지자체 코드로 정해 둔 이름)
 function districtList() {
   const best = new Map();
   for (const x of state.toilets) {
@@ -279,6 +279,8 @@ function districtList() {
     const d = distanceKm(state.user, x);
     if (!best.has(x.provider) || d < best.get(x.provider)) best.set(x.provider, d);
   }
+  // 내 주변: 가까운 구·시·군부터 / 시·도를 고르면: 가나다순
+  if (state.sido !== "near") return [...best.keys()].sort((a, b) => a.localeCompare(b, "ko"));
   return [...best.entries()].sort((a, b) => a[1] - b[1]).map(([n]) => n);
 }
 function renderFilters() {

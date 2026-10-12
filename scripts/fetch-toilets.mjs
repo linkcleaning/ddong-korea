@@ -8,6 +8,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { readFileSync } from "node:fs";
 
 const API = "https://apis.data.go.kr/1741000/public_restroom_info_v2/info_v2";
 const KAKAO_ADDR = "https://dapi.kakao.com/v2/local/search/address.json";
@@ -174,6 +175,29 @@ async function geocodeMissing(kakaoKey, items, cache) {
   await Promise.all(Array.from({ length: GEO_CONCURRENCY }, worker));
 }
 
+
+// ---------- 구·시·군 정하기 ----------
+// 개방자치단체코드(행정체제개편반영_20260702 엑셀) → [시·도, 구·시·군]
+// 주소는 형식이 제각각이라("서울 남부순환로..." 등) 코드를 먼저 쓰고, 도·광역시 코드면 주소에서 찾아요.
+const CODES = JSON.parse(readFileSync(new URL("./region-codes.json", import.meta.url), "utf8"));
+const DISTRICTS = {};
+for (const [slug, name] of Object.values(CODES)) (DISTRICTS[slug] ||= new Set()).add(name);
+// 긴 이름부터 찾아야 "강북구" 안의 "북구"를 잘못 고르지 않아요
+const DISTRICT_LIST = Object.fromEntries(Object.entries(DISTRICTS).map(([k, v]) => [k, [...v].sort((a, b) => b.length - a.length)]));
+let byCode = 0, byAddr = 0;
+function districtOf(it, slug) {
+  const c = CODES[String(it.OPN_ATMY_GRP_CD)];
+  if (c && c[0] === slug) { byCode++; return c[1]; }
+  const list = DISTRICT_LIST[slug] || [];
+  for (const a of [it.LCTN_ROAD_NM_ADDR, it.LCTN_LOTNO_ADDR]) {
+    const words = String(a || "").trim().split(/\s+/).slice(1, 3);
+    // 1) 두세 번째 단어가 구·시·군 이름 그대로   2) 붙어 쓴 경우("서귀포시서홍로")
+    const hit = list.find((n) => words.includes(n)) || list.find((n) => words.some((w) => w.startsWith(n)));
+    if (hit) { byAddr++; return hit; }
+  }
+  return "";
+}
+
 // ---------- 3. 앱용 형태로 정리 ----------
 // 제주판 앱과 같은 항목 이름을 써요. 파일 크기를 줄이려고 빈 글자·null 은 넣지 않아요.
 
@@ -261,15 +285,29 @@ async function main() {
   const groups = new Map(SIDO.map((s) => [s.slug, []]));
   const missing = [];
   let unknownSido = 0;
+  const unresolved = []; // 구·시·군을 못 정한 화장실 → 나중에 가까운 화장실 기준으로 정함
   for (const it of items) {
     const addr = it.LCTN_ROAD_NM_ADDR || it.LCTN_LOTNO_ADDR;
     const sido = findSido(addr);
     if (!sido) { unknownSido++; missing.push(`[시도모름] ${it.RSTRM_NM} | ${addr}`); continue; }
     const pos = cache[cacheKeyOf(it)];
     if (!inKorea(pos)) { missing.push(`[좌표없음] ${it.RSTRM_NM} | ${addr}`); continue; }
-    const district = (addr || "").trim().split(/\s+/)[1] || "";
-    groups.get(sido.slug).push(toToilet(it, pos, district, sido.slug));
+    const district = districtOf(it, sido.slug);
+    const t = toToilet(it, pos, district, sido.slug);
+    if (!district) unresolved.push(t);
+    groups.get(sido.slug).push(t);
   }
+  // 도·광역시 이름으로 등록됐고 주소로도 못 찾은 곳: 같은 시·도 안에서 가장 가까운 화장실의 구·시·군으로
+  for (const t of unresolved) {
+    let best = null, bd = Infinity;
+    for (const o of groups.get(t.sido)) {
+      if (!o.provider || o === t) continue;
+      const d = (o.lat - t.lat) ** 2 + ((o.lng - t.lng) * 0.82) ** 2;
+      if (d < bd) { bd = d; best = o; }
+    }
+    if (best) t.provider = best.provider; else delete t.provider;
+  }
+  console.log(`   구·시·군: 코드로 정함 ${byCode}, 주소로 정함 ${byAddr}, 가까운 곳 기준 ${unresolved.length}`);
 
   const index = {
     dataset: "행정안전부_공중화장실정보 조회서비스 (공공데이터포털)",
