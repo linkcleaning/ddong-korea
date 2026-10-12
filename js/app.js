@@ -20,6 +20,7 @@ const state = {
   filter: "all",
   region: "all",       // 시·군·구 칩
   sido: "near",        // "near"(내 주변) 또는 시·도 이름(seoul, busan ...)
+  sidoOpen: false,     // 시·도 칩 펼침
   index: null,         // public/data/index.json
   nearSlugs: [],       // 내 위치 둘레의 시·도들
   loading: false,
@@ -281,16 +282,21 @@ function districtList() {
   }
   // 내 주변: 가까운 구·시·군부터 / 시·도를 고르면: 가나다순
   if (state.sido !== "near") return [...best.keys()].sort((a, b) => a.localeCompare(b, "ko"));
-  return [...best.entries()].sort((a, b) => a[1] - b[1]).map(([n]) => n);
+  return [...best.entries()].sort((a, b) => a[1] - b[1]).slice(0, 8).map(([n]) => n); // 내 주변은 가까운 8곳만
 }
 function renderFilters() {
   const regions = state.index?.regions || [];
   const districts = districtList();
   const allOn = state.filter === "all" && state.region === "all";
-  $("#filters").innerHTML = `<div class="chip-row no-scrollbar" id="sido-row"><button type="button" class="chip chip-sido" data-sido="near" aria-pressed="${state.sido === "near"}">${icon("locate")}${esc(t("filters.near"))}</button>`
-    + regions.map((r) => `<button type="button" class="chip chip-sido" data-sido="${esc(r.slug)}" aria-pressed="${state.sido === r.slug}">${esc(sidoName(r.slug))}</button>`).join("")
-    + `</div><div class="chip-row no-scrollbar"><button type="button" class="chip" data-filter="all" aria-pressed="${allOn}">${icon("sparkles")}${esc(t("filters.all"))}</button>`
-    + districts.map((v) => `<button type="button" class="chip chip-region" data-region="${esc(v)}" aria-pressed="${state.region === v}">${icon("pin")}${esc(v)}</button>`).join("")
+  // 시·도: 평소엔 [내 주변] [고른 시·도] [지역 고르기 ▾] 한 줄, 누르면 전체 시·도가 아래로 펼쳐짐
+  const picked = state.sido !== "near" ? `<button type="button" class="chip chip-sido" data-sido="${esc(state.sido)}" aria-pressed="true">${esc(sidoName(state.sido))}</button>` : "";
+  const toggle = `<button type="button" class="chip chip-toggle" data-act="sidoToggle" aria-expanded="${state.sidoOpen}">${esc(t(state.sidoOpen ? "filters.fold" : "filters.pickRegion"))} ${state.sidoOpen ? "▴" : "▾"}</button>`;
+  $("#filters").innerHTML = `<div class="chip-row chip-wrap" id="sido-row"><button type="button" class="chip chip-sido" data-sido="near" aria-pressed="${state.sido === "near"}">${icon("locate")}${esc(t("filters.near"))}</button>`
+    + (state.sidoOpen
+      ? regions.map((r) => `<button type="button" class="chip chip-sido" data-sido="${esc(r.slug)}" aria-pressed="${state.sido === r.slug}">${esc(sidoName(r.slug))}</button>`).join("") + toggle
+      : picked + toggle)
+    + `</div><div class="chip-row chip-wrap"><button type="button" class="chip" data-filter="all" aria-pressed="${allOn}">${icon("sparkles")}${esc(t("filters.all"))}</button>`
+    + districts.map((v) => `<button type="button" class="chip chip-region" data-region="${esc(v)}" aria-pressed="${state.region === v}">${esc(v)}</button>`).join("")
     + `</div><div class="chip-row no-scrollbar">`
     + FILTERS.map(([k, ic]) => `<button type="button" class="chip chip-sm" data-filter="${k}" aria-pressed="${state.filter === k}">${icon(ic)}${esc(t(`filters.${k}`))}</button>`).join("")
     + `</div>`;
@@ -847,6 +853,7 @@ document.addEventListener("click", (e) => {
   }
   switch (b.dataset.act) {
     case "mascot": playMascot(b); break;
+    case "sidoToggle": state.sidoOpen = !state.sidoOpen; renderFilters(); break;
     case "locate": locate(); break;
     case "more": state.shown += 20; renderList(); break;
     case "close": state.selectedId = null; renderDrawer(); if (map) markerById.forEach((m) => m.setIcon(pinIcon(false))); break;
@@ -954,10 +961,8 @@ function updateNear() {
   if (state.sido === "near") showRegions(state.nearSlugs);
 }
 function chooseSido(slug) {
-  state.sido = slug; state.region = "all"; state.shown = PAGE; state.selectedId = null;
+  state.sido = slug; state.sidoOpen = false; state.region = "all"; state.shown = PAGE; state.selectedId = null;
   showRegions(slug === "near" ? state.nearSlugs : [slug]);
-  // 고른 칩이 보이게 가로 스크롤
-  setTimeout(() => document.querySelector(`[data-sido="${slug}"]`)?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" }), 30);
 }
 // 다른 시·도를 보면 그 지역으로, 내 주변이면 내 위치로 지도를 옮겨요
 function fitMapToData() {
