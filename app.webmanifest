@@ -34,5 +34,35 @@
       "purpose": "maskable"
     }
   ],
-  "id": "./"
+  "id": "./",
+  "orientation": "portrait",
+  "categories": [
+    "travel",
+    "navigation",
+    "utilities"
+  ],
+  "prefer_related_applications": false,
+  "screenshots": [
+    {
+      "src": "screenshots/home.png",
+      "sizes": "780x1400",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "내 주변 가장 가까운 화장실"
+    },
+    {
+      "src": "screenshots/detail.png",
+      "sizes": "780x1400",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "화장실 상세 정보"
+    },
+    {
+      "src": "screenshots/sos.png",
+      "sizes": "780x1400",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "SOS 긴급 연결"
+    }
+  ]
 }

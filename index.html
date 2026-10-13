@@ -81,5 +81,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
   <script type="module" src="js/app.js"></script>
+  <script>
+    // 서비스워커는 화면 그리기와 상관없이 바로 등록 (앱 설치·오프라인용)
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function () {});
+  </script>
 </body>
 </html>
