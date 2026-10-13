@@ -1,0 +1,80 @@
+name: 아이폰 앱 빌드·업로드
+
+# Actions 탭에서 "Run workflow" 버튼을 누를 때만 실행해요.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-build
+  cancel-in-progress: false
+
+jobs:
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      ASC_KEY_ID: FSK86ATHXN
+      ASC_ISSUER_ID: 22266a72-f903-4eb4-8c12-3dc10d6f28fe
+      TEAM_ID: Q9PV582B79
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 최신 Xcode 고르기
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: App Store Connect 키 준비
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          if [ -z "$ASC_KEY_P8" ]; then echo "::error::ASC_KEY_P8 Secret이 없어요"; exit 1; fi
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          KEY="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
+          echo "ASC_KEY_PATH=$KEY" >> "$GITHUB_ENV"
+          xcodebuild -version
+
+      - name: 프로젝트 준비 (CocoaPods)
+        working-directory: ios
+        run: pod install
+
+      - name: 앱 만들기 (Archive)
+        working-directory: ios
+        run: |
+          xcodebuild archive \
+            -workspace pwa-shell.xcworkspace \
+            -scheme pwa-shell \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Ddong.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            | tee "$RUNNER_TEMP/archive.log" | grep -E "error:|warning: .*sign|ARCHIVE (SUCCEEDED|FAILED)" || true
+          test -d "$RUNNER_TEMP/Ddong.xcarchive" || { tail -80 "$RUNNER_TEMP/archive.log"; exit 1; }
+
+      - name: App Store Connect에 올리기
+        working-directory: ios
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Ddong.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "✅ 빌드 ${{ github.run_number }} 업로드 완료 — 10~30분 뒤 App Store Connect의 TestFlight에 나타나요"
+
+      - name: 로그 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-logs
+          path: ${{ runner.temp }}/archive.log
+          if-no-files-found: ignore

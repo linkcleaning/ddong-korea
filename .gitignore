@@ -4,3 +4,8 @@ node_modules/
 .DS_Store
 *.csv
 !data-source/*.csv
+
+# iOS
+ios/Pods/
+ios/Podfile.lock
+*.xcuserdatad/
