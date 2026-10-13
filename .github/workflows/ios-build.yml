@@ -56,7 +56,12 @@ jobs:
             CODE_SIGN_STYLE=Automatic \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             | tee "$RUNNER_TEMP/archive.log" | grep -E "error:|warning: .*sign|ARCHIVE (SUCCEEDED|FAILED)" || true
-          test -d "$RUNNER_TEMP/Ddong.xcarchive" || { tail -80 "$RUNNER_TEMP/archive.log"; exit 1; }
+          if [ ! -d "$RUNNER_TEMP/Ddong.xcarchive" ]; then
+            # 실패 이유를 요약 화면(Annotations)에 보이게
+            grep -E "error:|error :|Code Signing|No profiles|requires a provisioning|Signing for" "$RUNNER_TEMP/archive.log" | sort -u | head -8 | while IFS= read -r l; do echo "::error title=빌드 오류::${l:0:900}"; done
+            echo "::error title=로그 끝부분::$(tail -40 "$RUNNER_TEMP/archive.log" | cut -c1-200 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
+            exit 1
+          fi
 
       - name: App Store Connect에 올리기
         working-directory: ios
@@ -68,7 +73,12 @@ jobs:
             -allowProvisioningUpdates \
             -authenticationKeyPath "$ASC_KEY_PATH" \
             -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/export.log"
+          if ! grep -q "EXPORT SUCCEEDED\|Upload succeeded\|Uploaded" "$RUNNER_TEMP/export.log"; then
+            grep -iE "error" "$RUNNER_TEMP/export.log" | sort -u | head -8 | while IFS= read -r l; do echo "::error title=업로드 오류::${l:0:900}"; done
+            echo "::error title=업로드 로그 끝::$(tail -30 "$RUNNER_TEMP/export.log" | cut -c1-200 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
+            exit 1
+          fi
           echo "✅ 빌드 ${{ github.run_number }} 업로드 완료 — 10~30분 뒤 App Store Connect의 TestFlight에 나타나요"
 
       - name: 로그 보관
