@@ -3,9 +3,9 @@
  "sourcePages": [
   "https://www.data.go.kr/data/15155058/openapi.do"
  ],
- "generatedAt": "2026-10-22T23:08:32.508Z",
- "referenceDate": "2026-10-16",
- "count": 52077,
+ "generatedAt": "2026-10-23T23:00:49.608Z",
+ "referenceDate": "2026-10-22",
+ "count": 52072,
  "regions": [
   {
    "slug": "seoul",
@@ -251,7 +251,7 @@
   {
    "slug": "gyeonggi",
    "name": "경기",
-   "count": 9614,
+   "count": 9609,
    "districts": [
     "가평군",
     "고양시",
@@ -291,8 +291,8 @@
     127.690996
    ],
    "center": [
-    37.421186,
-    127.053351
+    37.420599,
+    127.053382
    ],
    "file": "toilets-gyeonggi.json"
   },
