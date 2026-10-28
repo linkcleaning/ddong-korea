@@ -523,3 +523,20 @@ html, body { touch-action: manipulation; }
 .chip-wrap + .chip-wrap { padding-top: 8px; border-top: 1px dashed var(--line); }
 .chip-toggle { border-style: dashed; color: var(--basalt-2); }
 .chip-toggle[aria-expanded="true"] { background: #FFE3EE; border-style: solid; }
+
+/* ---------- 아이폰 App Store 앱 (애플 심사용: 똥 표현 숨김) ---------- */
+.ios-app .app-name { display: none; }
+/* ---------- 길안내 앱 고르기 (아이폰: Apple 지도 포함) ---------- */
+button.n-go { width: 100%; border: 0; font-family: inherit; cursor: pointer; }
+.nav-sheet { text-align: left; }
+.nav-sheet .ns-title { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 900; color: #411024; }
+.nav-sheet .ns-title .ic { width: 20px; height: 20px; color: var(--hallabong); }
+.nav-sheet .ns-sub { margin-top: 4px; font-size: 13px; color: #8A6A76; }
+.ns-list { margin-top: 16px; display: grid; gap: 8px; }
+.ns-list a { display: flex; align-items: center; gap: 10px; min-height: 54px; border-radius: 16px; padding: 0 18px; font-size: 15px; font-weight: 900; }
+.ns-list .ic { width: 18px; height: 18px; }
+.ns-apple, .dir-apple { background: #1C1C1E; color: #fff; }
+.ns-kakao { background: #FFE812; color: #282322; }
+.ns-naver { background: #03C75A; color: #fff; }
+.ns-close { margin-top: 10px; width: 100%; min-height: 48px; border: 0; border-radius: 14px; background: #F2EAED; font: inherit; font-weight: 900; color: #58243A; }
+.dirs.with-apple { grid-template-columns: repeat(2, 1fr); }

@@ -21,6 +21,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css" />
   <link rel="stylesheet" href="css/app.css" />
   <title>Ddong · 전국 공중화장실</title>
+  <script>
+    // 아이폰 App Store 앱이면 처음부터 'ios-app' 표시 (상단 Ddong 글자가 잠깐 보이지 않게)
+    if (/PWAShell/.test(navigator.userAgent) || /(?:^|;\s*)app-platform=iOS/.test(document.cookie)) { document.documentElement.classList.add("ios-app"); document.title = "전국 공중화장실 찾기"; }
+  </script>
 </head>
 <body>
   <a class="skip-link" href="#main" data-i18n="header.skip">지도와 검색으로 바로가기</a>

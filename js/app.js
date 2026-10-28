@@ -1,6 +1,16 @@
 import { DICT, LANG_LABELS, HTML_LANG } from "./i18n.js";
-import { icon, mascotSvg, PIN_HTML } from "./icons.js";
+import { icon, mascotSvg, PIN_HTML, PIN_HTML_CLEAN } from "./icons.js";
 import { SOS, PHRASES } from "./sos.js";
+
+// ---------- 실행 환경 ----------
+// 아이폰 App Store 앱(PWAShell)인지 확인. 애플 심사(지침 1.1) 때문에 아이폰 앱에서는
+// 똥 캐릭터·소리·표현을 모두 빼고 화장실 그림으로 보여 줍니다. (구글 앱·웹은 그대로)
+const IS_IOS_APP = /PWAShell/.test(navigator.userAgent) || /(?:^|;\s*)app-platform=iOS/.test(document.cookie);
+const IS_IOS = IS_IOS_APP || /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const CLEAN = IS_IOS_APP;
+const PIN = CLEAN ? PIN_HTML_CLEAN : PIN_HTML;
+const APP_NAME = CLEAN ? "화장실 찾기" : "Ddong";
+if (CLEAN) { document.documentElement.classList.add("ios-app"); document.title = "전국 공중화장실 찾기"; }
 
 // ---------- 상태 ----------
 const SEOUL_CITY_HALL = { lat: 37.5663, lng: 126.9779 };
@@ -109,6 +119,7 @@ function filtered() {
 const dirUrls = (x) => {
   const name = encodeURIComponent(x.name);
   return {
+    apple: `https://maps.apple.com/?daddr=${x.lat},${x.lng}&q=${name}&dirflg=w`,
     kakao: `https://map.kakao.com/link/to/${name},${x.lat},${x.lng}`,
     naver: `https://map.naver.com/p/directions/-/${x.lng},${x.lat},${name},,PLACE_POI/-/walk`,
     google: `https://www.google.com/maps/dir/?api=1&destination=${x.lat},${x.lng}&travelmode=walking`,
@@ -123,6 +134,8 @@ const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navi
 function appUrl(kind, x) {
   const name = encodeURIComponent(x.name);
   const from = state.locStatus === "found" ? `sp=${state.user.lat},${state.user.lng}&` : "";
+  // 애플 기본 지도 앱 (아이폰 앱 안에서는 maps:// 로 바로, 사파리에서는 maps.apple.com 링크가 지도 앱을 엶)
+  if (kind === "apple") return IS_IOS_APP ? `maps://?${state.locStatus === "found" ? `saddr=${state.user.lat},${state.user.lng}&` : ""}daddr=${x.lat},${x.lng}&q=${name}&dirflg=w` : null;
   if (kind === "kakao") return `kakaomap://route?${from}ep=${x.lat},${x.lng}&by=FOOT`;
   if (kind === "naver") return `nmap://route/walk?${state.locStatus === "found" ? `slat=${state.user.lat}&slng=${state.user.lng}&sname=${encodeURIComponent("내 위치")}&` : ""}dlat=${x.lat}&dlng=${x.lng}&dname=${name}&appname=${encodeURIComponent(location.hostname || "ddong.korea")}`;
   return null;
@@ -148,8 +161,24 @@ document.addEventListener("click", (e) => {
   if (!x) return;
   e.preventDefault();
   e.stopPropagation();
+  if (a.closest("#phrase-modal")) $("#phrase-modal").hidden = true;
   openNav(a.dataset.nav, x, a.href);
 }, true);
+
+// 아이폰에서는 "길안내"를 누르면 Apple 지도·카카오맵·네이버지도 중에서 고르게 함
+function openNavSheet(id) {
+  const x = state.toilets.find((o) => o.id === id);
+  if (!x) return;
+  const u = dirUrls(x), m = $("#phrase-modal");
+  m.innerHTML = `<div class="pm-card nav-sheet" role="document"><p class="ns-title">${icon("nav")}${esc(t("detail.chooseApp"))}</p><p class="ns-sub">${esc(x.name)}</p>
+    <div class="ns-list">
+      <a class="ns-apple press" href="${u.apple}" target="_blank" rel="noreferrer" data-nav="apple" data-id="${esc(x.id)}">${icon("map")}${esc(t("detail.apple"))}</a>
+      <a class="ns-kakao press" href="${u.kakao}" target="_blank" rel="noreferrer" data-nav="kakao" data-id="${esc(x.id)}">${icon("map")}${esc(t("detail.kakao"))}</a>
+      <a class="ns-naver press" href="${u.naver}" target="_blank" rel="noreferrer" data-nav="naver" data-id="${esc(x.id)}">${icon("map")}${esc(t("detail.naver"))}</a>
+    </div>
+    <button type="button" class="ns-close press" data-act="closephrase">${esc(t("common.close"))}</button></div>`;
+  m.hidden = false;
+}
 
 // ---------- 소리 (똥글이) ----------
 // 직접 녹음한 "똥!" (ddong.mp3). 아이폰·안드로이드는 앱을 나갔다 오면 소리 장치를 멈추므로
@@ -157,7 +186,7 @@ document.addEventListener("click", (e) => {
 // 3) 그래도 0.25초 안에 안 깨어나면 미리 준비해 둔 <audio>로 바로 재생합니다.
 const DDONG_URL = "ddong.mp3?v=3";
 let actx = null, ddongBuf = null, ddongAB = null, ddongEl = null, ddongBlobUrl = null, decoding = null;
-fetch(DDONG_URL).then((r) => r.arrayBuffer()).then((ab) => {
+if (!CLEAN) fetch(DDONG_URL).then((r) => r.arrayBuffer()).then((ab) => {
   ddongAB = ab;
   try { ddongBlobUrl = URL.createObjectURL(new Blob([ab], { type: "audio/mpeg" })); } catch {}
   prepareEl();
@@ -330,7 +359,9 @@ function nearestCard(x) {
     </button>
     ${state.locStatus === "fallback" ? `<button type="button" class="n-retry press" data-act="locate">${icon("refresh")}${esc(t("list.retryLocation"))}</button>` : ""}
     <div class="n-actions">
-      <a class="n-go press" href="${u.kakao}" target="_blank" rel="noreferrer" data-nav="kakao" data-id="${esc(x.id)}">${icon("nav")}${esc(t("list.startNavigation"))}</a>
+      ${IS_IOS
+        ? `<button type="button" class="n-go press" data-act="navsheet" data-id="${esc(x.id)}">${icon("nav")}${esc(t("list.startNavigation"))}</button>`
+        : `<a class="n-go press" href="${u.kakao}" target="_blank" rel="noreferrer" data-nav="kakao" data-id="${esc(x.id)}">${icon("nav")}${esc(t("list.startNavigation"))}</a>`}
       <button type="button" class="n-map press" data-showmap="${esc(x.id)}" aria-label="${esc(t("list.viewOnMap"))}" title="${esc(t("list.viewOnMap"))}">${icon("map")}</button>
     </div>
   </section>`;
@@ -406,7 +437,7 @@ function initMap() {
 }
 
 function pinIcon(sel) {
-  return L.divIcon({ html: PIN_HTML, className: `pin-icon${sel ? " sel" : ""}`, iconSize: [42, 46], iconAnchor: [14, 44] });
+  return L.divIcon({ html: PIN, className: `pin-icon${sel ? " sel" : ""}`, iconSize: [42, 46], iconAnchor: [14, 44] });
 }
 
 function renderMap() {
@@ -446,7 +477,7 @@ function renderFallback() {
   const minLng = Math.min(...lngs, state.user.lng), maxLng = Math.max(...lngs, state.user.lng) + 1e-6;
   near.forEach((x) => { const k = `${Math.floor(((x.lng - minLng) / (maxLng - minLng)) * 6)}:${Math.floor(((x.lat - minLat) / (maxLat - minLat)) * 5)}`; if (!cells.has(k)) cells.set(k, x); });
   const picks = [...cells.values()].slice(0, 24);
-  const pinSvg = PIN_HTML.match(/<svg[\s\S]*?<\/svg>/)[0];
+  const pinSvg = PIN.match(/<svg[\s\S]*?<\/svg>/)[0];
   fb.innerHTML = `${picks.map((x) => {
     const left = 8 + ((x.lng - minLng) / (maxLng - minLng)) * 84;
     const top = 24 + ((maxLat - x.lat) / (maxLat - minLat)) * 52;
@@ -528,7 +559,8 @@ function renderDrawer() {
       <p class="r-note">${esc(t("detail.reviewLocal"))}</p>
       ${reviews.length ? `<div class="r-list">${reviews.slice(0, 3).map((r) => `<div>${icon("message")}<p><b>★ ${r.rating}</b>${esc(r.text)}</p></div>`).join("")}</div>` : ""}
     </div>
-    <div class="sec"><h3>${icon("nav")}${esc(t("detail.directions"))}</h3><div class="dirs">
+    <div class="sec"><h3>${icon("nav")}${esc(t("detail.directions"))}</h3><div class="dirs${IS_IOS ? " with-apple" : ""}">
+      ${IS_IOS ? `<a class="dir-apple press" href="${u.apple}" target="_blank" rel="noreferrer" data-nav="apple" data-id="${esc(x.id)}">${icon("map")}${esc(t("detail.apple"))}</a>` : ""}
       <a class="dir-kakao press" href="${u.kakao}" target="_blank" rel="noreferrer" data-nav="kakao" data-id="${esc(x.id)}">${esc(t("detail.kakao"))}${icon("external")}</a>
       <a class="dir-naver press" href="${u.naver}" target="_blank" rel="noreferrer" data-nav="naver" data-id="${esc(x.id)}">${esc(t("detail.naver"))}${icon("external")}</a>
       <a class="dir-google press" href="${u.google}" target="_blank" rel="noreferrer">${esc(t("detail.google"))}${icon("external")}</a>
@@ -573,7 +605,7 @@ const CONTACT = {
 const hasContact = () => Boolean(CONTACT.email || CONTACT.kakao || CONTACT.phone);
 function contactCard(subject = "") {
   if (!hasContact()) return "";
-  const subj = encodeURIComponent(`[Ddong] ${subject || t("guide.contactTitle")}`);
+  const subj = encodeURIComponent(`[${APP_NAME}] ${subject || t("guide.contactTitle")}`);
   return `<article class="g-card g-contact" id="contact"><div class="top"><div class="g-ico c-e">${icon("message")}</div><span class="g-num">05</span></div>
     <h3>${esc(t("guide.contactTitle"))}</h3><p>${esc(t("guide.contactBody"))}</p>
     <div class="contact-list">
@@ -709,7 +741,7 @@ function renderGuide() {
   ];
   $("#view-guide").innerHTML = `<div class="wrap" style="max-width:896px">
     <div class="g-hero"><div class="c1"></div><div class="c2"></div>
-      <p class="k">ACCESSIBLE KOREA</p><h2 id="guide-title">${esc(t("guide.title"))}</h2><p>${esc(t("guide.intro"))}</p>${mascotSvg()}</div>
+      <p class="k">ACCESSIBLE KOREA</p><h2 id="guide-title">${esc(t("guide.title"))}</h2><p>${esc(t("guide.intro"))}</p>${CLEAN ? "" : mascotSvg()}</div>
     <div class="g-cards">
       ${cards.map(([k, ic, n, c]) => `<article class="g-card"><div class="top"><div class="g-ico ${c}">${icon(ic)}</div><span class="g-num">${n}</span></div>
         <h3>${esc(t(`guide.${k}Title`))}</h3><p>${esc(t(`guide.${k}Body`))}</p>
@@ -799,6 +831,7 @@ function renderMascotFloat() {
   el.hidden = false; // 모든 화면에서 오른쪽 가운데에 항상 표시
   const homeBtn = state.view !== "list"
     ? `<button type="button" class="home-fab press" data-view="list" aria-label="${esc(t("nav.list"))}">${icon("house")}<span>${esc(t("nav.list"))}</span></button>` : "";
+  if (CLEAN) { el.hidden = !homeBtn; el.innerHTML = homeBtn ? `<div class="fab-col">${homeBtn}</div>` : ""; return; }
   el.innerHTML = `<button type="button" class="bubble" data-act="mascot" aria-label="${esc(t("mascot.aria"))}"><strong>${esc(t("mascot.name"))}</strong><span>${esc(t("mascot.prompt"))}</span></button>
     <div class="fab-col"><button type="button" class="mascot-round press" data-act="mascot" aria-label="${esc(t("mascot.aria"))}">${mascotSvg()}<span class="badge">${icon("volume")}</span></button>${homeBtn}</div>`;
 }
@@ -852,7 +885,8 @@ document.addEventListener("click", (e) => {
     toast(t("detail.ratingSaved")); return;
   }
   switch (b.dataset.act) {
-    case "mascot": playMascot(b); break;
+    case "mascot": if (!CLEAN) playMascot(b); break;
+    case "navsheet": openNavSheet(b.dataset.id); break;
     case "sidoToggle": state.sidoOpen = !state.sidoOpen; renderFilters(); break;
     case "locate": locate(); break;
     case "more": state.shown += 20; renderList(); break;

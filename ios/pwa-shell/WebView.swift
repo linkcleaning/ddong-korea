@@ -134,6 +134,14 @@ extension ViewController: WKUIDelegate, WKDownloadDelegate {
         }
 
         let requestHost = requestUrl.host ?? ""
+
+        // Apple 지도 링크는 아이폰 기본 지도 앱으로 바로 열기 (App Store 심사 지침 4)
+        if (requestHost == "maps.apple.com" || requestHost.hasSuffix(".maps.apple.com")) {
+            decisionHandler(.cancel)
+            UIApplication.shared.open(requestUrl, options: [:], completionHandler: nil)
+            return
+        }
+
         let matchingAuthOrigin = authOrigins.first(where: { !$0.isEmpty && requestHost.range(of: $0) != nil })
         if (matchingAuthOrigin != nil) {
             decisionHandler(.allow)
