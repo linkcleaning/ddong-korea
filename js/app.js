@@ -10,6 +10,7 @@ const IS_IOS = IS_IOS_APP || /iPhone|iPad|iPod/i.test(navigator.userAgent) || (n
 const CLEAN = IS_IOS_APP;
 const PIN = CLEAN ? PIN_HTML_CLEAN : PIN_HTML;
 const APP_NAME = CLEAN ? "빼기" : "Ddong";
+const iosName = () => (state.lang === "ko" ? "빼기" : "Bbaegi"); // 아이폰 앱 이름 (한국어 외에는 영문)
 if (CLEAN) {
   document.documentElement.classList.add("ios-app"); document.title = "빼기 · 전국 공중화장실";
   const an = document.querySelector(".app-name"); if (an) { an.textContent = "빼기"; an.classList.add("ios-name"); }
@@ -289,6 +290,7 @@ function locate(onDone) {
 function applyStaticText() {
   document.documentElement.lang = HTML_LANG[state.lang];
   document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = t(el.dataset.i18n)));
+  if (CLEAN) { const an = $(".app-name"); if (an) an.textContent = iosName(); document.title = `${iosName()} · ${t("app.title")}`; }
   $("#search").placeholder = t("search.placeholder");
   $("#search").setAttribute("aria-label", t("search.label"));
   $("#search-clear").setAttribute("aria-label", t("search.clear"));
