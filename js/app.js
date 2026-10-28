@@ -9,8 +9,11 @@ const IS_IOS_APP = /PWAShell/.test(navigator.userAgent) || /(?:^|;\s*)app-platfo
 const IS_IOS = IS_IOS_APP || /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const CLEAN = IS_IOS_APP;
 const PIN = CLEAN ? PIN_HTML_CLEAN : PIN_HTML;
-const APP_NAME = CLEAN ? "화장실 찾기" : "Ddong";
-if (CLEAN) { document.documentElement.classList.add("ios-app"); document.title = "전국 공중화장실 찾기"; }
+const APP_NAME = CLEAN ? "빼기" : "Ddong";
+if (CLEAN) {
+  document.documentElement.classList.add("ios-app"); document.title = "빼기 · 전국 공중화장실";
+  const an = document.querySelector(".app-name"); if (an) { an.textContent = "빼기"; an.classList.add("ios-name"); }
+}
 
 // ---------- 상태 ----------
 const SEOUL_CITY_HALL = { lat: 37.5663, lng: 126.9779 };
