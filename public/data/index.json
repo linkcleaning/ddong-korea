@@ -3,9 +3,9 @@
  "sourcePages": [
   "https://www.data.go.kr/data/15155058/openapi.do"
  ],
- "generatedAt": "2026-10-29T23:53:46.726Z",
- "referenceDate": "2026-10-22",
- "count": 52072,
+ "generatedAt": "2026-10-30T23:34:17.417Z",
+ "referenceDate": "2026-10-29",
+ "count": 52073,
  "regions": [
   {
    "slug": "seoul",
@@ -53,7 +53,7 @@
   {
    "slug": "busan",
    "name": "부산",
-   "count": 2528,
+   "count": 2530,
    "districts": [
     "강서구",
     "금정구",
@@ -251,7 +251,7 @@
   {
    "slug": "gyeonggi",
    "name": "경기",
-   "count": 9609,
+   "count": 9608,
    "districts": [
     "가평군",
     "고양시",
