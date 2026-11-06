@@ -92,18 +92,38 @@ async function fetchPage(key, pageNo) {
   return { items, total: Number(body.totalCount ?? 0) };
 }
 
+// 공공데이터포털이 가끔 빈 쪽이나 덜 찬 쪽을 돌려줘서, 모자라면 잠깐 쉬었다가 다시 받아요
+async function fetchPageFull(key, pageNo, expected) {
+  let best = { items: [] };
+  for (let i = 1; i <= 6; i++) {
+    try {
+      const r = await fetchPage(key, pageNo);
+      if (r.items.length > best.items.length) best = r;
+      if (r.items.length >= expected) return r;
+    } catch (e) {
+      if (i === 6) console.warn(`  ${pageNo}쪽 실패: ${e.message}`);
+    }
+    await sleep(1500 * i);
+  }
+  console.warn(`  ${pageNo}쪽: ${best.items.length}/${expected}건만 받음`);
+  return best;
+}
+
 async function fetchAll(key) {
   const first = await fetchPage(key, 1);
   const pages = Math.ceil(first.total / ROWS);
   console.log(`전국 ${first.total}건, ${pages}쪽 받는 중...`);
   const all = [...first.items];
-  // 5쪽씩 동시에 받기
-  for (let p = 2; p <= pages; p += 5) {
+  const expectedOf = (q) => (q < pages ? ROWS : first.total - ROWS * (pages - 1));
+  // 3쪽씩 동시에 받기 (너무 많이 동시에 보내면 서버가 빈 쪽을 돌려줘요)
+  for (let p = 2; p <= pages; p += 3) {
     const batch = [];
-    for (let q = p; q < p + 5 && q <= pages; q++) batch.push(fetchPage(key, q));
+    for (let q = p; q < p + 3 && q <= pages; q++) batch.push(fetchPageFull(key, q, expectedOf(q)));
     for (const r of await Promise.all(batch)) all.push(...r.items);
-    if ((p - 1) % 100 === 0) console.log(`  ${Math.min(p + 4, pages)}/${pages}쪽`);
+    if ((p - 2) % 99 === 0) console.log(`  ${Math.min(p + 2, pages)}/${pages}쪽`);
+    await sleep(150);
   }
+  console.log(`받은 건수 ${all.length}/${first.total}`);
   if (all.length < first.total * 0.95) {
     throw new Error(`받은 건수가 너무 적어요 (${all.length}/${first.total}) — 기존 데이터를 지키려고 중단해요`);
   }
