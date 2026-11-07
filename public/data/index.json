@@ -3,14 +3,14 @@
  "sourcePages": [
   "https://www.data.go.kr/data/15155058/openapi.do"
  ],
- "generatedAt": "2026-11-07T00:09:12.311Z",
+ "generatedAt": "2026-11-07T23:38:12.686Z",
  "referenceDate": "2026-12-11",
- "count": 51969,
+ "count": 52068,
  "regions": [
   {
    "slug": "seoul",
    "name": "서울",
-   "count": 5543,
+   "count": 5553,
    "districts": [
     "강남구",
     "강동구",
@@ -45,8 +45,8 @@
     127.15939
    ],
    "center": [
-    37.54169,
-    127.000329
+    37.541577,
+    127.000079
    ],
    "file": "toilets-seoul.json"
   },
@@ -299,7 +299,7 @@
   {
    "slug": "gangwon",
    "name": "강원",
-   "count": 4078,
+   "count": 4091,
    "districts": [
     "강릉시",
     "고성군",
@@ -327,8 +327,8 @@
     129.327246
    ],
    "center": [
-    37.565386,
-    128.532939
+    37.574576,
+    128.527497
    ],
    "file": "toilets-gangwon.json"
   },
@@ -397,7 +397,7 @@
   {
    "slug": "jeonbuk",
    "name": "전북",
-   "count": 2611,
+   "count": 2685,
    "districts": [
     "고창군",
     "군산시",
@@ -415,21 +415,21 @@
     "진안군"
    ],
    "bbox": [
-    35.354692,
+    35.347445,
     126.419408,
     36.117616,
     127.844487
    ],
    "center": [
-    35.825373,
-    127.020642
+    35.82094,
+    127.039167
    ],
    "file": "toilets-jeonbuk.json"
   },
   {
    "slug": "gyeongbuk",
    "name": "경북",
-   "count": 4873,
+   "count": 4874,
    "districts": [
     "경산시",
     "경주시",
@@ -462,14 +462,14 @@
    ],
    "center": [
     36.346633,
-    128.747483
+    128.74756
    ],
    "file": "toilets-gyeongbuk.json"
   },
   {
    "slug": "gyeongnam",
    "name": "경남",
-   "count": 4857,
+   "count": 4858,
    "districts": [
     "거제시",
     "거창군",
@@ -496,8 +496,8 @@
     129.162251
    ],
    "center": [
-    35.216126,
-    128.434629
+    35.216158,
+    128.435476
    ],
    "file": "toilets-gyeongnam.json"
   },
