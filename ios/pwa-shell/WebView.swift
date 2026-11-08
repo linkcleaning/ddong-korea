@@ -10,6 +10,7 @@ func createWebView(container: UIView, WKSMH: WKScriptMessageHandler, WKND: WKNav
     let userContentController = WKUserContentController()
 
     userContentController.add(WKSMH, name: "print")
+    userContentController.add(WKSMH, name: "review") // 별점 요청 (애플 기본 별점 창)
     userContentController.add(WKSMH, name: "push-subscribe")
     userContentController.add(WKSMH, name: "push-permission-request")
     userContentController.add(WKSMH, name: "push-permission-state")

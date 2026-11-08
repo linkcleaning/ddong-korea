@@ -145,7 +145,7 @@ function openNav(kind, x, webUrl) {
   const app = appUrl(kind, x);
   if (!app) { location.href = webUrl; return; }
   let left = false;
-  const onHide = () => { if (document.visibilityState === "hidden") left = true; };
+  const onHide = () => { if (document.visibilityState === "hidden") { left = true; review.navAway = true; } };
   document.addEventListener("visibilitychange", onHide);
   window.addEventListener("pagehide", onHide);
   location.href = app;
@@ -165,6 +165,72 @@ document.addEventListener("click", (e) => {
   if (a.closest("#phrase-modal")) $("#phrase-modal").hidden = true;
   openNav(a.dataset.nav, x, a.href);
 }, true);
+
+// ---------- 별점·리뷰 요청 ----------
+// 길안내로 지도 앱에 다녀온 게 3번째일 때 한 번만 별점을 부탁합니다.
+// 아이폰 앱: 애플 기본 별점 창(SKStoreReviewController)만 사용 (애플 지침 5.6.1: 직접 만든 별점 팝업 금지)
+// 구글 앱(TWA): 작은 안내 카드 → 플레이 스토어 별점 화면. 웹(사파리·크롬)에서는 묻지 않음.
+const IS_ANDROID_APP = (() => {
+  try {
+    if (document.referrer.startsWith("android-app://com.linkdole.ddong")) sessionStorage.setItem("bb-twa", "1");
+    return sessionStorage.getItem("bb-twa") === "1";
+  } catch { return false; }
+})();
+const STORE_REVIEW = {
+  ios: "itms-apps://itunes.apple.com/app/id6822303047?action=write-review",
+  android: "market://details?id=com.linkdole.ddong",
+};
+const RV = {
+  ko: { title: "빼기가 도움이 되셨나요?", body: "별점 하나가 다른 분들이 빼기를 찾는 데 큰 힘이 돼요.", go: "별점 남기기", later: "다음에", rateTitle: "별점으로 응원하기", rateBody: "빼기가 쓸 만했다면 스토어에 별점과 한 줄 후기를 남겨 주세요." },
+  en: { title: "Has Bbaegi helped you?", body: "A quick rating helps other people find Bbaegi.", go: "Rate the app", later: "Not now", rateTitle: "Rate Bbaegi", rateBody: "If Bbaegi was useful, please leave a rating and a short review in the store." },
+  zh: { title: "Bbaegi 对您有帮助吗？", body: "您的评分能帮助更多人找到 Bbaegi。", go: "去评分", later: "以后再说", rateTitle: "为 Bbaegi 评分", rateBody: "如果觉得好用，请在商店留下评分和简短评价。" },
+  ja: { title: "Bbaegi はお役に立ちましたか？", body: "評価をいただくと、ほかの方が Bbaegi を見つけやすくなります。", go: "評価する", later: "あとで", rateTitle: "Bbaegi を評価", rateBody: "便利だと感じたら、ストアで評価と短いレビューをお願いします。" },
+};
+const rv = (k) => (RV[state.lang] || RV.ko)[k];
+const review = {
+  navAway: false,
+  canRate: () => IS_IOS_APP || IS_ANDROID_APP,
+  hasNative: () => { try { return Boolean(window.webkit?.messageHandlers?.review); } catch { return false; } },
+  openStore() { location.href = IS_IOS_APP ? STORE_REVIEW.ios : STORE_REVIEW.android; },
+  maybeAsk() {
+    if (!review.canRate()) return;
+    const n = (store.get("bb-nav-count", 0) || 0) + 1;
+    store.set("bb-nav-count", n);
+    if (n < 3 || store.get("bb-review-asked", 0)) return;
+    if (IS_IOS_APP) {
+      if (!review.hasNative()) return; // 예전 아이폰 앱 버전: 묻지 않음
+      store.set("bb-review-asked", Date.now());
+      try { window.webkit.messageHandlers.review.postMessage("request"); } catch {}
+      return;
+    }
+    store.set("bb-review-asked", Date.now());
+    const m = $("#phrase-modal");
+    m.innerHTML = `<div class="pm-card nav-sheet rv-card" role="document">
+      <div class="rv-stars" aria-hidden="true">★★★★★</div>
+      <p class="ns-title">${esc(rv("title"))}</p><p class="ns-sub">${esc(rv("body"))}</p>
+      <div class="ns-list"><button type="button" class="rv-go press" data-act="rv-go">${esc(rv("go"))}</button></div>
+      <button type="button" class="ns-close press" data-act="closephrase">${esc(rv("later"))}</button></div>`;
+    m.hidden = false;
+  },
+};
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !review.navAway) return;
+  review.navAway = false;
+  setTimeout(review.maybeAsk, 900); // 지도 앱에서 돌아오고 화면이 자리 잡은 뒤
+});
+document.addEventListener("click", (e) => {
+  const b = e.target.closest('[data-act="rv-go"], [data-act="rv-store"]');
+  if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  $("#phrase-modal").hidden = true;
+  review.openStore();
+}, true);
+function rateCard() {
+  if (!review.canRate()) return "";
+  return `<article class="g-card g-rate"><div class="top"><div class="g-ico c-a">${icon("star")}</div><span class="g-num">06</span></div>
+    <h3>${esc(rv("rateTitle"))}</h3><p>${esc(rv("rateBody"))}</p>
+    <div class="contact-list"><a class="contact-btn press rv-btn" href="#" data-act="rv-store">★ ${esc(rv("go"))}</a></div></article>`;
+}
 
 // 아이폰에서는 "길안내"를 누르면 Apple 지도·카카오맵·네이버지도 중에서 고르게 함
 function openNavSheet(id) {
@@ -751,7 +817,9 @@ function renderGuide() {
         ${k === "data" && m ? `<p class="meta">${m.count.toLocaleString()} · ${esc(t("detail.updated"))} ${esc(m.referenceDate || "-")}<br><a href="${esc(m.sourcePages?.[0] || "https://www.data.go.kr")}" target="_blank" rel="noreferrer">data.go.kr</a></p>` : ""}
       </article>`).join("")}
       ${contactCard()}
+      ${rateCard()}
     </div>
+    <p class="app-ver">v2</p>
     <p class="admin-link"><a href="admin.html">${icon("shield")}${esc(t("guide.admin"))}</a></p></div>`;
 }
 

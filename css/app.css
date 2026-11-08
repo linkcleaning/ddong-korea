@@ -541,3 +541,11 @@ button.n-go { width: 100%; border: 0; font-family: inherit; cursor: pointer; }
 .ns-naver { background: #03C75A; color: #fff; }
 .ns-close { margin-top: 10px; width: 100%; min-height: 48px; border: 0; border-radius: 14px; background: #F2EAED; font: inherit; font-weight: 900; color: #58243A; }
 .dirs.with-apple { grid-template-columns: repeat(2, 1fr); }
+
+/* 별점 요청 카드 · 작은 버전 표시 */
+.rv-card { text-align: center; }
+.rv-stars { font-size: 30px; letter-spacing: 4px; color: #FFC24B; margin: 2px 0 6px; text-shadow: 0 2px 0 rgba(74,21,48,.12); }
+.rv-card .ns-title { justify-content: center; }
+.rv-go { display: block; width: 100%; padding: 15px 16px; border: 0; border-radius: 16px; background: var(--hallabong); color: #fff; font: inherit; font-weight: 800; font-size: 16px; cursor: pointer; box-shadow: 0 8px 18px rgba(232,74,130,.28); }
+.rv-btn { background: #FFF4D6 !important; color: #8A5A00 !important; }
+.app-ver { margin: 18px 0 0; text-align: center; font-size: 10px; color: var(--muted); opacity: .45; }

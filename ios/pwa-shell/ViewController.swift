@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import StoreKit
 
 var webView: WKWebView! = nil
 
@@ -258,6 +259,12 @@ extension ViewController: WKScriptMessageHandler {
   func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == "print" {
             printView(webView: PWAShell.webView)
+        }
+        if message.name == "review" {
+            // 애플이 정한 횟수(1년에 최대 3번) 안에서만 별점 창이 뜸
+            if let scene = self.view.window?.windowScene {
+                SKStoreReviewController.requestReview(in: scene)
+            }
         }
         if message.name == "push-subscribe" {
             handleSubscribeTouch(message: message)
