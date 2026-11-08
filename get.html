@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>빼기 다운로드 · 전국 공중화장실</title>
+<meta name="description" content="급할 땐, 빼기. 내 위치에서 가장 가까운 공중화장실을 바로 찾아 주는 앱" />
+<meta property="og:title" content="빼기 · 전국 공중화장실" />
+<meta property="og:description" content="급할 땐, 빼기. 앱스토어·구글플레이 무료" />
+<meta property="og:image" content="https://linkcleaning.github.io/ddong-korea/icons/icon-512.png" />
+<link rel="icon" href="icons/icon-192.png" />
+<style>
+  :root { --plum:#4A1530; --plum2:#7A1F45; --hot:#E84A82; --bg:#FFF0F5; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100svh; display:grid; place-items:center; font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+         background: radial-gradient(circle at 50% 20%, var(--plum2), var(--plum)); color:#fff; padding:24px; }
+  .card { width:100%; max-width:380px; text-align:center; }
+  img { width:112px; height:112px; border-radius:28px; box-shadow:0 14px 34px rgba(0,0,0,.35); }
+  h1 { margin:18px 0 4px; font-size:40px; letter-spacing:-1px; }
+  p { margin:0 0 26px; color:#FFC2D8; font-size:16px; }
+  a.btn { display:flex; align-items:center; justify-content:center; gap:10px; height:60px; margin:10px 0; border-radius:18px;
+          font-size:17px; font-weight:800; text-decoration:none; }
+  .ios { background:#fff; color:#111; }
+  .and { background:var(--hot); color:#fff; }
+  .msg { margin-top:18px; font-size:13px; color:#E9B3C8; min-height:18px; }
+  .ver { margin-top:22px; font-size:10px; opacity:.35; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <img src="icons/icon-512.png" alt="빼기 아이콘" />
+    <h1>빼기</h1>
+    <p>급할 땐, 가장 가까운 공중화장실로</p>
+    <a class="btn ios" id="ios" href="https://apps.apple.com/kr/app/id6822303047"> App Store에서 받기</a>
+    <a class="btn and" id="and" href="https://play.google.com/store/apps/details?id=com.linkdole.ddong">▶ Google Play에서 받기</a>
+    <div class="msg" id="msg"></div>
+    <div class="ver">v1</div>
+  </main>
+<script>
+  // 휴대폰 종류를 알아서 맞는 스토어로 바로 이동 (?stay 를 붙이면 이동하지 않음)
+  (function () {
+    var ua = navigator.userAgent || "";
+    var isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    var isAnd = /Android/i.test(ua);
+    if (location.search.indexOf("stay") !== -1) return;
+    var target = isIOS ? document.getElementById("ios").href : isAnd ? document.getElementById("and").href : null;
+    if (target) {
+      document.getElementById("msg").textContent = "스토어로 이동하고 있어요…";
+      setTimeout(function () { location.href = target; }, 350);
+    }
+  })();
+</script>
+</body>
+</html>
