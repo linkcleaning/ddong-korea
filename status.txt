@@ -1,0 +1,4 @@
+앱: 띠링 (com.linkclean.ttiring) 버전 1.1.0 / versionCode 1003
+결과: success
+실행 번호: 3 / 커밋: 708b6cd4df8ede711641f3922b9c5bc0bf7b2802
+Fri Nov 13 08:03:56 UTC 2026
