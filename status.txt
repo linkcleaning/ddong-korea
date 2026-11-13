@@ -1,0 +1,5 @@
+앱: 띠링 (com.linkdole.ttiring) 버전 1.1.0 빌드 1002
+결과: success
+업로드 요청: 1 / 앱 있음: 1
+실행 번호: 2 / 커밋: 708b6cd4df8ede711641f3922b9c5bc0bf7b2802
+Fri Nov 13 08:14:52 UTC 2026
