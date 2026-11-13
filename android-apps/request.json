@@ -1,0 +1,10 @@
+{
+  "_설명": "이 파일을 바꿔서 올리면 아래 앱을 안드로이드(Google Play 올리는 .aab)로 빌드해요. 결과 파일은 android-apps-out 브랜치에 생겨요.",
+  "repo": "linkcleaning/ttiring",
+  "ref": "main",
+  "name": "띠링",
+  "vault": "ttiring",
+  "package": "com.linkclean.ttiring",
+  "version": "1.0.0",
+  "try": 1
+}

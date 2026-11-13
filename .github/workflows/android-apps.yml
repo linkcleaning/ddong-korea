@@ -1,0 +1,114 @@
+name: 다른 앱 안드로이드 빌드
+
+# android-apps/request.json 을 바꿔서 올리면 그 앱의 Google Play 업로드 파일(.aab)을 만들어요.
+# 결과(.aab, 기록)는 android-apps-out 브랜치에 생겨요.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android-apps/request.json'
+      - '.github/workflows/android-apps.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: android-apps
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      OUT: ${{ github.workspace }}/_out
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 요청 읽기
+        id: req
+        run: |
+          mkdir -p "$OUT"
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          r = json.load(open('android-apps/request.json'))
+          for k in ['repo', 'ref', 'name', 'vault', 'package', 'version']:
+              print(f"{k}={r[k]}")
+          PY
+          cat "$GITHUB_OUTPUT"
+
+      - name: 앱 코드 받기
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.req.outputs.repo }}
+          ref: ${{ steps.req.outputs.ref }}
+          path: app
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: 웹 파일 만들기 + 앱에 넣기
+        working-directory: app
+        run: |
+          (npm ci || npm install) 2>&1 | tail -n 15
+          npm run build 2>&1 | tail -n 15
+          npx cap sync android 2>&1 | tail -n 20
+
+      - name: 업로드 키 꺼내기 (없으면 새로 만들기)
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          python3 -m pip install --quiet cryptography || pip install --quiet cryptography
+          python3 android-apps/vault.py "${{ steps.req.outputs.vault }}" "$RUNNER_TEMP/keys"
+
+      - name: .aab 만들기 (서명 포함)
+        id: aab
+        working-directory: app/android
+        run: |
+          CODE=$(( 1000 + ${{ github.run_number }} ))
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          chmod +x gradlew
+          ./gradlew --no-daemon bundleRelease \
+            -PappVersionCode=$CODE -PappVersionName="${{ steps.req.outputs.version }}" \
+            -Pandroid.injected.signing.store.file="$KS_FILE" \
+            -Pandroid.injected.signing.store.password="$KS_PASS" \
+            -Pandroid.injected.signing.key.alias="$KS_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KS_PASS" > "$OUT/gradle.log" 2>&1 || { tail -n 80 "$OUT/gradle.log"; exit 1; }
+          AAB=$(ls app/build/outputs/bundle/release/*.aab | head -1)
+          cp "$AAB" "$OUT/${{ steps.req.outputs.vault }}-${{ steps.req.outputs.version }}-$CODE.aab"
+          keytool -list -v -keystore "$KS_FILE" -storepass "$KS_PASS" -alias "$KS_ALIAS" | grep -E "SHA256|SHA1" > "$OUT/upload-key-fingerprint.txt" || true
+          ls -la "$OUT"
+
+      - name: 새 업로드 키면 보관함 저장
+        if: env.NEW_VAULT == '1'
+        run: |
+          cp "android-apps/vault/${{ steps.req.outputs.vault }}.enc" "$RUNNER_TEMP/vault.enc"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main && git reset --hard origin/main
+          mkdir -p android-apps/vault && cp "$RUNNER_TEMP/vault.enc" "android-apps/vault/${{ steps.req.outputs.vault }}.enc"
+          git add android-apps/vault
+          git commit -m "안드로이드 업로드 키 보관함 저장 (암호화) — ${{ steps.req.outputs.name }} [skip ci]"
+          git push origin HEAD:main
+
+      - name: 결과를 android-apps-out 브랜치에 남기기
+        if: always()
+        run: |
+          cd "$OUT"
+          {
+            echo "앱: ${{ steps.req.outputs.name }} (${{ steps.req.outputs.package }}) 버전 ${{ steps.req.outputs.version }} / versionCode ${{ steps.aab.outputs.code }}"
+            echo "결과: ${{ job.status }}"
+            echo "실행 번호: ${{ github.run_number }} / 커밋: ${{ github.sha }}"
+            date -u
+          } > status.txt
+          [ -f gradle.log ] && { grep -E "error|FAILED|BUILD" gradle.log | head -60 > gradle-summary.log; tail -n 100 gradle.log > gradle-tail.log; rm gradle.log; } || true
+          git init -q -b android-apps-out
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add . && git commit -qm "안드로이드 빌드 ${{ steps.req.outputs.name }} run ${{ github.run_number }}" || true
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" android-apps-out
