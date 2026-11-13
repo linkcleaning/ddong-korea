@@ -1,0 +1,13 @@
+{
+  "_설명": "이 파일을 바꿔서 올리면 아래 앱을 아이폰용으로 빌드해요. upload가 true면 TestFlight(App Store Connect)까지 올려요.",
+  "repo": "linkcleaning/ttiring",
+  "ref": "main",
+  "name": "띠링",
+  "name_en": "Ttiring",
+  "bundle": "com.linkdole.ttiring",
+  "project": "ios/App/App.xcodeproj",
+  "scheme": "App",
+  "version": "1.0.0",
+  "upload": true,
+  "try": 1
+}
