@@ -3,9 +3,9 @@
  "sourcePages": [
   "https://www.data.go.kr/data/15155058/openapi.do"
  ],
- "generatedAt": "2026-11-14T00:53:29.474Z",
+ "generatedAt": "2026-11-15T00:26:52.609Z",
  "referenceDate": "2026-12-11",
- "count": 52074,
+ "count": 52076,
  "regions": [
   {
    "slug": "seoul",
@@ -429,7 +429,7 @@
   {
    "slug": "gyeongbuk",
    "name": "경북",
-   "count": 4874,
+   "count": 4876,
    "districts": [
     "경산시",
     "경주시",
@@ -461,8 +461,8 @@
     130.90271
    ],
    "center": [
-    36.346633,
-    128.74756
+    36.346506,
+    128.747483
    ],
    "file": "toilets-gyeongbuk.json"
   },
