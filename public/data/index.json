@@ -3,14 +3,14 @@
  "sourcePages": [
   "https://www.data.go.kr/data/15155058/openapi.do"
  ],
- "generatedAt": "2026-11-15T00:26:52.609Z",
+ "generatedAt": "2026-11-16T01:12:07.240Z",
  "referenceDate": "2026-12-11",
- "count": 52076,
+ "count": 52077,
  "regions": [
   {
    "slug": "seoul",
    "name": "서울",
-   "count": 5553,
+   "count": 5554,
    "districts": [
     "강남구",
     "강동구",
@@ -39,14 +39,14 @@
     "중랑구"
    ],
    "bbox": [
-    37.449719,
+    37.449612,
     126.812215,
     37.680195,
     127.15939
    ],
    "center": [
-    37.541577,
-    127.000079
+    37.541576,
+    127.000173
    ],
    "file": "toilets-seoul.json"
   },
