@@ -2,6 +2,7 @@ import UIKit
 import WebKit
 import AuthenticationServices
 import SafariServices
+import CoreLocation
 
 
 func createWebView(container: UIView, WKSMH: WKScriptMessageHandler, WKND: WKNavigationDelegate, NSO: NSObject, VC: ViewController) -> WKWebView{
@@ -15,6 +16,9 @@ func createWebView(container: UIView, WKSMH: WKScriptMessageHandler, WKND: WKNav
     userContentController.add(WKSMH, name: "push-permission-request")
     userContentController.add(WKSMH, name: "push-permission-state")
     userContentController.add(WKSMH, name: "push-token")
+    // 위치: 앱(아이폰)이 직접 받아서 웹에 넘겨줘요 → 처음 한 번만 물어봐요
+    userContentController.add(GeoBridge.shared, name: "geo")
+    userContentController.addUserScript(WKUserScript(source: GeoBridge.polyfill, injectionTime: .atDocumentStart, forMainFrameOnly: true))
 
     config.userContentController = userContentController
 
@@ -32,6 +36,7 @@ func createWebView(container: UIView, WKSMH: WKScriptMessageHandler, WKND: WKNav
     webView.isHidden = true;
 
     webView.navigationDelegate = WKND
+    GeoBridge.shared.webView = webView
 
     webView.scrollView.bounces = false
     webView.scrollView.contentInsetAdjustmentBehavior = .never
@@ -360,5 +365,85 @@ extension ViewController: WKUIDelegate, WKDownloadDelegate {
 
         self.openFile(url: fileURL)
         completionHandler(fileURL)
+    }
+}
+
+
+// MARK: - 위치 (navigator.geolocation 대신 iOS 위치 서비스 사용)
+// WKWebView 기본 위치 기능은 앱을 켤 때마다 "…위치를 사용하려고 합니다" 창을 다시 띄워요.
+// 여기서 CLLocationManager로 직접 받으면 iOS 시스템 허용(한 번)만으로 계속 쓸 수 있어요.
+final class GeoBridge: NSObject, WKScriptMessageHandler, CLLocationManagerDelegate {
+    static let shared = GeoBridge()
+    weak var webView: WKWebView?
+    private let manager = CLLocationManager()
+    private var pending: [Int] = []
+
+    static let polyfill = """
+    (function(){
+      if (!window.webkit || !window.webkit.messageHandlers || !window.webkit.messageHandlers.geo) return;
+      var n = 0, cbs = {};
+      function err(code, msg){ return { code: code, message: msg, PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 }; }
+      window.__geoCb = function(id, ok, lat, lng, acc, code){
+        var c = cbs[id]; if (!c) return; delete cbs[id];
+        if (ok) c.s({ coords: { latitude: lat, longitude: lng, accuracy: acc, altitude: null, altitudeAccuracy: null, heading: null, speed: null }, timestamp: Date.now() });
+        else if (c.e) c.e(err(code, code === 1 ? "denied" : "unavailable"));
+      };
+      var geo = {
+        getCurrentPosition: function(s, e){ var id = ++n; cbs[id] = { s: s, e: e }; window.webkit.messageHandlers.geo.postMessage({ id: id }); },
+        watchPosition: function(s, e, o){ geo.getCurrentPosition(s, e, o); return 0; },
+        clearWatch: function(){}
+      };
+      try { Object.defineProperty(navigator, "geolocation", { value: geo, configurable: true }); } catch (x) {}
+    })();
+    """
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyBest
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let body = message.body as? [String: Any], let id = (body["id"] as? NSNumber)?.intValue else { return }
+        pending.append(id)
+        start()
+    }
+
+    private func start() {
+        switch manager.authorizationStatus {
+        case .notDetermined:
+            manager.requestWhenInUseAuthorization()
+        case .denied, .restricted:
+            finish(nil, code: 1)
+        default:
+            // 1분 안에 받은 위치가 있으면 바로 사용
+            if let loc = manager.location, -loc.timestamp.timeIntervalSinceNow < 60 { finish(loc, code: 0); return }
+            manager.requestLocation()
+        }
+    }
+
+    func locationManagerDidChangeAuthorization(_ m: CLLocationManager) {
+        if !pending.isEmpty && m.authorizationStatus != .notDetermined { start() }
+    }
+
+    func locationManager(_ m: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if let loc = locations.last { finish(loc, code: 0) }
+    }
+
+    func locationManager(_ m: CLLocationManager, didFailWithError error: Error) {
+        finish(nil, code: (error as? CLError)?.code == .denied ? 1 : 2)
+    }
+
+    private func finish(_ loc: CLLocation?, code: Int) {
+        let ids = pending
+        pending = []
+        guard !ids.isEmpty else { return }
+        let js = ids.map { id -> String in
+            if let l = loc {
+                return "window.__geoCb&&window.__geoCb(\(id),true,\(l.coordinate.latitude),\(l.coordinate.longitude),\(l.horizontalAccuracy),0);"
+            }
+            return "window.__geoCb&&window.__geoCb(\(id),false,0,0,0,\(code));"
+        }.joined()
+        DispatchQueue.main.async { [weak self] in self?.webView?.evaluateJavaScript(js, completionHandler: nil) }
     }
 }
