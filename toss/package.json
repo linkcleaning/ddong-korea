@@ -1,0 +1,16 @@
+{
+  "name": "bbaegi-toss",
+  "private": true,
+  "type": "module",
+  "description": "빼기 — 토스 미니앱(앱인토스) 빌드",
+  "scripts": {
+    "build": "node build.mjs && ait build",
+    "dev": "node build.mjs && npx serve dist"
+  },
+  "dependencies": {
+    "@apps-in-toss/web-framework": "^3.10.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

@@ -8,6 +8,10 @@ import { SOS, PHRASES } from "./sos.js";
 const IS_IOS_APP = /PWAShell/.test(navigator.userAgent) || /(?:^|;\s*)app-platform=iOS/.test(document.cookie);
 const IS_IOS = IS_IOS_APP || /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const CLEAN = IS_IOS_APP;
+// 토스 미니앱(앱인토스) 안에서 열렸는지. toss/ 빌드가 js/ait-bridge.js 로 window.__AIT__ 를 넣어 줌
+const AIT = window.__AIT__ || null;
+const IS_TOSS = Boolean(AIT);
+if (IS_TOSS) document.documentElement.classList.add("toss-app");
 const PIN = CLEAN ? PIN_HTML_CLEAN : PIN_HTML;
 const APP_NAME = "빼기"; // 앱 이름은 구글·아이폰·웹 모두 '빼기' (똥글이 캐릭터·소리는 아이폰 앱에서만 숨김)
 const iosName = () => (state.lang === "ko" ? "빼기" : "Bbaegi"); // 앱 이름 (한국어 외에는 영문)
@@ -16,7 +20,8 @@ if (CLEAN) document.documentElement.classList.add("ios-app");
 // ---------- 상태 ----------
 const SEOUL_CITY_HALL = { lat: 37.5663, lng: 126.9779 };
 const LS = { lang: "ddong-korea-language", reviews: "ddong-korea-community-reviews", ratings: "ddong-korea-ratings" };
-const DATA_DIR = "public/data/";
+// 토스 미니앱은 화장실 데이터를 웹(GitHub Pages)에서 받아요 — 매일 새벽 갱신분이 앱 재배포 없이 바로 반영
+const DATA_DIR = IS_TOSS ? "https://linkcleaning.github.io/ddong-korea/public/data/" : "public/data/";
 const PAGE = 10;
 
 const store = {
@@ -143,6 +148,11 @@ function appUrl(kind, x) {
 }
 function openNav(kind, x, webUrl) {
   const app = appUrl(kind, x);
+  if (IS_TOSS) { // 토스 안에서는 페이지를 떠나지 않고 지도 앱(없으면 웹 지도)을 바깥에서 열어요
+    review.navAway = true;
+    (app ? AIT.openURL(app) : Promise.reject()).catch(() => AIT.openURL(webUrl)).catch(() => {});
+    return;
+  }
   if (!app) { location.href = webUrl; return; }
   let left = false;
   const onHide = () => { if (document.visibilityState === "hidden") { left = true; review.navAway = true; } };
@@ -155,9 +165,19 @@ function openNav(kind, x, webUrl) {
     if (!left && document.visibilityState === "visible") location.href = webUrl; // 앱이 없으면 웹 지도로
   }, 1600);
 }
+// 토스 미니앱: 외부 링크(웹·전화·문자·메일·오픈채팅)는 토스 바깥에서 열기 (미니앱 화면은 그대로)
+if (IS_TOSS) document.addEventListener("click", (e) => {
+  const a = e.target.closest("a[href]");
+  if (!a || a.dataset.nav) return;
+  const href = a.getAttribute("href") || "";
+  if (!/^(https?:|tel:|sms:|mailto:)/i.test(href)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  AIT.openURL(a.href).catch(() => {});
+}, true);
 document.addEventListener("click", (e) => {
   const a = e.target.closest("a[data-nav]");
-  if (!a || !IS_MOBILE) return;
+  if (!a || !(IS_MOBILE || IS_TOSS)) return;
   const x = state.toilets.find((o) => o.id === a.dataset.id);
   if (!x) return;
   e.preventDefault();
@@ -340,6 +360,13 @@ function toast(msg, err = false) {
 
 // ---------- 위치 ----------
 function locate(onDone) {
+  if (IS_TOSS) { // 토스 위치 권한(동의 창은 토스가 띄움). 거절해도 서울 기준으로 계속 쓸 수 있어요
+    state.locStatus = "locating"; renderList();
+    AIT.getLocation()
+      .then((c) => { state.user = { lat: c.latitude, lng: c.longitude }; state.locStatus = "found"; state.shown = PAGE; updateNear(); render(); onDone?.(true); })
+      .catch(() => { state.locStatus = "fallback"; updateNear(); render(); onDone?.(false); });
+    return;
+  }
   if (!navigator.geolocation) { state.locStatus = "fallback"; render(); onDone?.(false); return; }
   state.locStatus = "locating"; renderList();
   navigator.geolocation.getCurrentPosition(
@@ -819,8 +846,8 @@ function renderGuide() {
       ${contactCard()}
       ${rateCard()}
     </div>
-    <p class="app-ver">v2</p>
-    <p class="admin-link"><a href="admin.html">${icon("shield")}${esc(t("guide.admin"))}</a></p></div>`;
+    <p class="app-ver">${IS_TOSS ? "t1" : "v2"}</p>
+    ${IS_TOSS ? "" : `<p class="admin-link"><a href="admin.html">${icon("shield")}${esc(t("guide.admin"))}</a></p>`}</div>`;
 }
 
 // ---------- SOS ----------
@@ -1083,6 +1110,6 @@ fetch(`${DATA_DIR}index.json`, { cache: "no-cache" })
 
 locate();
 
-if ("serviceWorker" in navigator && location.protocol === "https:") {
+if (!IS_TOSS && "serviceWorker" in navigator && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
