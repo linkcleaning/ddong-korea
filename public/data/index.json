@@ -3,9 +3,9 @@
  "sourcePages": [
   "https://www.data.go.kr/data/15155058/openapi.do"
  ],
- "generatedAt": "2026-11-18T02:53:04.381Z",
+ "generatedAt": "2026-11-19T02:22:12.408Z",
  "referenceDate": "2026-12-11",
- "count": 52079,
+ "count": 52078,
  "regions": [
   {
    "slug": "seoul",
@@ -53,7 +53,7 @@
   {
    "slug": "busan",
    "name": "부산",
-   "count": 2537,
+   "count": 2536,
    "districts": [
     "강서구",
     "금정구",
@@ -79,8 +79,8 @@
     129.262749
    ],
    "center": [
-    35.15543,
-    129.056583
+    35.155466,
+    129.056687
    ],
    "file": "toilets-busan.json"
   },
