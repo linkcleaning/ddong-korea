@@ -3,14 +3,14 @@
  "sourcePages": [
   "https://www.data.go.kr/data/15155058/openapi.do"
  ],
- "generatedAt": "2026-11-19T02:22:12.408Z",
+ "generatedAt": "2026-11-20T02:42:40.037Z",
  "referenceDate": "2026-12-11",
- "count": 52078,
+ "count": 52080,
  "regions": [
   {
    "slug": "seoul",
    "name": "서울",
-   "count": 5554,
+   "count": 5555,
    "districts": [
     "강남구",
     "강동구",
@@ -114,7 +114,7 @@
   {
    "slug": "incheon",
    "name": "인천",
-   "count": 2294,
+   "count": 2295,
    "districts": [
     "강화군",
     "검단구",
@@ -136,7 +136,7 @@
    ],
    "center": [
     37.482973,
-    126.673081
+    126.673068
    ],
    "file": "toilets-incheon.json"
   },
